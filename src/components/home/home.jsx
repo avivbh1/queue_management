@@ -1,41 +1,61 @@
-import "./home.css"
-import {API_URL} from "../../utils.js"
+import "./home.css";
+import {API_URL} from "../../utils.js";
 import io from 'socket.io-client';
-import React, {useState, useEffect } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import axios from 'axios';
+import Alert from "../alert/Alert";
 
 const socket = io.connect(API_URL);
-const MAX_OUTSIDE = 4;
+const MAX_OUTSIDE = 2;
+
 export default function Home() {
 
     const [queue, setQueue] = useState([]);
-    socket.on('connect', () => {
-        console.log("connected to socket")
-    });
+    const [canGoOut, setCanGoOut] = useState(false); 
+    
+    // const [popupMessage, setPopupMessage] = useState([]);
 
-    socket.on('client-entered', newQueue => {
-        setQueue(newQueue);
-    });
+    // const pageRef = useRef();
+    // const popupTextboxRef = useRef();
 
-    socket.on('client-left', newQueue => {
-        setQueue(newQueue);
-    });
+    useEffect(() => {
+        socket.on('connect', () => {
+            console.log("connected to socket");
+        });
+    
+        socket.on('client-entered', newQueue => {
+            setQueue(newQueue);
+        });
+    
+        socket.on('client-left', newQueue => {
+            setQueue(newQueue);
+        });
+    }, [queue])
+    
+    // const CanGoOut = (prevQueue, newQueue, name) => {
+    //     return prevQueue.indexOf(name) >= MAX_OUTSIDE && newQueue.indexOf(name) > -1 && newQueue.indexOf(name) < MAX_OUTSIDE;
+    // }
+
+    // const closePopup = () => {
+    //     setPopupMessage()
+    //     pageRef.current.classList.remove("disable")
+    // }
 
     const initializeName = () => {
-        console.log("hereee : " + localStorage.getItem("name"));
         if (null === localStorage.getItem("name")) {
             const myPromise = new Promise((resolve, reject) => {
                 let name = "";
 
-                while ("" === name) {
+                while (name === "") {
                     name = prompt("הרשם: הכנס את השם המלא שלך");
-
-                    if ("" === name) {
-                        alert("השם שהוזן אינו תקין, הרשם שוב")
+                    
+                    if (name === "") {
+                        alert("השם שהוזן אינו תקין, הרשם שוב");
                     }
                 }
                 resolve(name);
             })
+
             myPromise
             .then(data => {
                 localStorage.setItem("name", data);
@@ -44,7 +64,7 @@ export default function Home() {
     };
 
     const initializeQueue = () => {
-        axios.get(`${API_URL}api/queue`, {method: 'GET'})
+        axios.get(`${API_URL}/api/queue`, {method: 'GET'})
         .then(response => {
 
             if (response.status === 200) {
@@ -55,9 +75,10 @@ export default function Home() {
         }).catch(err => {
             console.log(err);
         })
-    };
+    }
+
     const enterQueue = () => {
-        let currentName = localStorage.getItem("name")
+        let currentName = localStorage.getItem("name");
 
         if (null == currentName || "" === currentName) {
             const myPromise = new Promise((resolve, reject) => {
@@ -66,7 +87,7 @@ export default function Home() {
                 while ("" === name) {
                     name = prompt("הרשם: הכנס את השם המלא שלך");
                     if ("" === name) {
-                        alert("השם שהוזן אינו תקין, הרשם שוב")
+                        alert("השם שהוזן אינו תקין, הרשם שוב");
                     }
                 }
                 resolve(name);
@@ -82,7 +103,7 @@ export default function Home() {
         if(!queue.includes(currentName)) {
             socket.emit("client-entered", currentName);
         } else {
-            alert("אתה כבר נמצא בתור.")
+            alert("אתה כבר נמצא בתור :)");
         }
     };
 
@@ -95,7 +116,7 @@ export default function Home() {
                 while ("" === name) {
                     name = prompt("הרשם: הכנס את השם המלא שלך");
                     if ("" === name) {
-                        alert("השם שהוזן אינו תקין, הרשם שוב")
+                        alert("השם שהוזן אינו תקין, הרשם שוב");
                     }
                 }
                 resolve(name);
@@ -107,11 +128,11 @@ export default function Home() {
             })
         }
         // Getting the name after the changes
-        currentName = localStorage.getItem("name")
+        currentName = localStorage.getItem("name");
         if(queue.includes(currentName)) {
             socket.emit("client-left", currentName);
         } else {
-            alert("אתה לא בתור, בבקשה אל תספים אותנו")
+            alert("אתה לא בתור :)");
         }
     }
     
@@ -120,6 +141,12 @@ export default function Home() {
         initializeName();
     }, [])
 
+    // useEffect(() => {
+    //     if (CanGoOut(queue, name)) {
+
+    //     }
+    // }, [queue])
+
     useEffect(() => {
         const handleBeforeUnload = (event) => {
           event.preventDefault();
@@ -127,7 +154,7 @@ export default function Home() {
         };
     
         const handleUnload = () => {
-          io.emit("client-left", localStorage.getItem("name"))
+          io.emit("client-left", localStorage.getItem("name"));
           socket.close();
         };
     
@@ -145,7 +172,6 @@ export default function Home() {
             <header>
             <h1 id='title'>?מי בחוץ</h1>
             </header>
-                <h1 class='message'>{queue.slice(0, MAX_OUTSIDE).includes(localStorage.getItem("name")) ? "אתה יכול לצאת": null}</h1>
             <div class='content-box'>
                 <ul>
                 <h2>מחוץ לכיתה</h2> 
@@ -170,6 +196,7 @@ export default function Home() {
                 <button id='enter-button' class='button' onClick={enterQueue}>כניסה לתור</button>
                 <button id='leave-button' class='button' onClick={leaveQueue}>יציאה מהתור</button>
             </div>
+            {canGoOut ? <Alert /> : null}
         </div>
     );
 }
